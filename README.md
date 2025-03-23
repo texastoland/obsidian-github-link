@@ -22,14 +22,15 @@ Github links are automatically transformed into tags. For example, pasting `http
 
 You can also include a table with results from a search query using a `github-query` codeblock. For example:
 
-````
+~~~yaml
 ```github-query
 outputType: table
 queryType: pull-request
-query: "is:pr repo:nathonius/obsidian-github-link"
+query:
+  repo: nathonius/obsidian-github-link
 columns: [number, title, author, status]
 ```
-````
+~~~
 
 This produces a table of results that refreshes upon opening the note.
 

@@ -27,7 +27,7 @@ export interface QueryParams {
 	/**
 	 * Custom query. This will override most other options.
 	 */
-	query?: string;
+	query?: string | Record<string, string>;
 
 	/**
 	 * Pagination page size
