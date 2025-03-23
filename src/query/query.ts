@@ -1,10 +1,11 @@
 import { parseYaml, setIcon } from "obsidian";
 import {
-	searchIssues,
+	getIssuesForOrganization,
 	getIssuesForRepo,
 	getMyIssues,
 	getPullRequestsForRepo,
-	getIssuesForOrganization,
+	searchIssues,
+	serializeQueryParams,
 } from "../github/github";
 import type { MaybePaginated, PaginationMeta } from "../github/response";
 import { PluginSettings } from "../plugin";
@@ -66,7 +67,7 @@ export class GithubQuery {
 		if (params.outputType === OutputType.Table) {
 			// Custom Query
 			if (params.query && (params.queryType === QueryType.Issue || params.queryType === QueryType.PullRequest)) {
-				const { meta, response } = await searchIssues(params, params.query, params.org, skipCache);
+				const { meta, response } = await searchIssues(params, skipCache);
 				return { meta, response: response.items };
 			}
 			// Issue query with org and repo provided
@@ -223,7 +224,8 @@ export class GithubQuery {
 	private getExternalLink(params: QueryParams): string | null {
 		// Custom search query
 		if (params.query && (params.queryType === QueryType.Issue || params.queryType === QueryType.PullRequest)) {
-			return `https://github.com/search?q=${encodeURIComponent(params.query)}`;
+			const query = serializeQueryParams(params);
+			return `https://github.com/search?q=${encodeURIComponent(query)}`;
 		} else {
 			return null;
 		}
