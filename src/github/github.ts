@@ -3,7 +3,7 @@ import { RequestError, mapObject } from "../util";
 import type { GithubAccount } from "../settings";
 import { PluginSettings } from "../plugin";
 import { issueListSortFromQuery, pullListSortFromQuery, searchSortFromQuery } from "../query/sort";
-import type { QueryParams } from "../query/types";
+import { type QueryParams, QueryType } from "../query/types";
 import { GitHubApi } from "./api";
 import type {
 	CheckRunListResponse,
@@ -22,7 +22,7 @@ import type {
 
 // TODO: Refactor this whole file into a class for better use in dataview queries, etc
 
-const tokenMatchRegex = /repo:(.+)\//;
+const tokenMatchRegex = /repo:([\w\-]+)\//;
 const api = new GitHubApi();
 
 function getAccount(org?: string): GithubAccount | undefined {
@@ -148,16 +148,37 @@ export function listCheckRunsForRef(
 	return api.listCheckRunsForRef(org, repo, ref, getToken(org), skipCache);
 }
 
+function appendFilter(query: string, [qualifier, value]: [string, string]): string {
+	value = value.trim();
+	// spaces need wrapped in quotes like `reason:"not planned"`
+	if (value.includes(" ") && !value.includes('"')) {
+		value = `"${value}"`;
+	}
+	return `${query} ${qualifier}:${value}`;
+}
+
+export function serializeQueryParams({ query = "", queryType }: QueryParams): string {
+	if (typeof query !== "string") {
+		// extract optional search term from filter pairs like `state:open`
+		const { search = "", ...filters } = query;
+		query = Object.entries(filters).reduce(appendFilter, search);
+	}
+	query = query.trim();
+	switch (queryType) {
+		case QueryType.Issue: return appendFilter(query, ["type", "issue"]);
+		case QueryType.PullRequest: return appendFilter(query, ["type", "pr"]);
+		default: throw new Error("Unreachable case: query type not supported");
+	}
+}
+
 export async function searchIssues(
 	params: QueryParams,
-	query: string,
-	org?: string,
 	skipCache = false,
 ): Promise<MaybePaginated<IssueSearchResponse>> {
 	const searchParams = mapObject<QueryParams, IssueSearchParams>(
 		params,
 		{
-			q: () => query,
+			q: serializeQueryParams,
 			sort: (params) => searchSortFromQuery(params),
 			order: (params) => params.order,
 			page: (params) => params.page,
@@ -168,7 +189,7 @@ export async function searchIssues(
 	);
 
 	setPageSize(searchParams);
-	return api.searchIssues(searchParams, getToken(org, query), skipCache);
+	return api.searchIssues(searchParams, getToken(params.org, searchParams.q), skipCache);
 }
 
 // TODO: This is in the wrong place and should be at the API level to be properly cached
